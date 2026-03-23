@@ -27,6 +27,11 @@ const mainNavItems: NavItem[] = [
         href: '/financeiro/entradas',
         icon: CircleDollarSign,
     },
+    {
+        title: 'Saidas',
+        href: '/financeiro/saidas',
+        icon: CircleDollarSign,
+    },
 ];
 
 const footerNavItems: NavItem[] = [

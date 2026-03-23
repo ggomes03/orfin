@@ -2,13 +2,13 @@
 
 namespace App\Http\Requests;
 
-use App\Models\IncomeEntry;
-use App\Models\IncomeSource;
+use App\Models\ExpenseEntry;
+use App\Models\ExpenseSource;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class StoreIncomeEntryRequest extends FormRequest
+class StoreExpenseEntryRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -26,18 +26,18 @@ class StoreIncomeEntryRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'entry_mode' => ['required', 'string', Rule::in([IncomeEntry::TYPE_SOURCE, IncomeEntry::TYPE_SIMPLE])],
-            'income_source_id' => [
+            'entry_mode' => ['required', 'string', Rule::in([ExpenseEntry::TYPE_SOURCE, ExpenseEntry::TYPE_SIMPLE])],
+            'expense_source_id' => [
                 'nullable',
-                'required_if:entry_mode,'.IncomeEntry::TYPE_SOURCE,
-                Rule::exists('income_sources', 'id')->where(
+                'required_if:entry_mode,'.ExpenseEntry::TYPE_SOURCE,
+                Rule::exists('expense_sources', 'id')->where(
                     fn ($query) => $query
                         ->where('user_id', $this->user()?->id)
-                        ->where('type', '!=', IncomeSource::TYPE_SALARY)
+                        ->where('type', '!=', ExpenseSource::TYPE_FIXED)
                 ),
             ],
-            'description' => ['nullable', 'required_if:entry_mode,'.IncomeEntry::TYPE_SIMPLE, 'string', 'max:255'],
-            'amount' => ['nullable', 'required_if:entry_mode,'.IncomeEntry::TYPE_SIMPLE, 'numeric', 'gt:0'],
+            'description' => ['nullable', 'required_if:entry_mode,'.ExpenseEntry::TYPE_SIMPLE, 'string', 'max:255'],
+            'amount' => ['required', 'numeric', 'gt:0'],
             'entry_date' => ['required', 'date'],
         ];
     }

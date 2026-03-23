@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react';
-import { PlaceholderPattern } from '@/components/ui/placeholder-pattern';
+import MonthlyBalanceTable from '@/components/dashboard/monthly-balance-table';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
@@ -13,10 +13,21 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function Dashboard({
     annualIncomeAmount,
+    annualExpenseAmount,
+    annualBalanceAmount,
     exerciseYear,
+    monthlyBalanceRows,
 }: {
     annualIncomeAmount: number;
+    annualExpenseAmount: number;
+    annualBalanceAmount: number;
     exerciseYear: number;
+    monthlyBalanceRows: {
+        month: number;
+        incomeAmount: number;
+        expenseAmount: number;
+        balanceAmount: number;
+    }[];
 }) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -37,15 +48,37 @@ export default function Dashboard({
                             Ano: {exerciseYear}
                         </p>
                     </div>
-                    <div className="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                        <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
+                    <div className="rounded-xl border border-sidebar-border/70 bg-background p-5 dark:border-sidebar-border">
+                        <p className="text-sm text-muted-foreground">
+                            Saidas no ano do exercicio
+                        </p>
+                        <p className="mt-2 text-2xl font-semibold">
+                            {new Intl.NumberFormat('pt-BR', {
+                                style: 'currency',
+                                currency: 'BRL',
+                            }).format(annualExpenseAmount)}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            Inclui projecao de saidas fixas
+                        </p>
                     </div>
-                    <div className="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                        <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
+                    <div className="rounded-xl border border-sidebar-border/70 bg-background p-5 dark:border-sidebar-border">
+                        <p className="text-sm text-muted-foreground">
+                            Saldo anual projetado
+                        </p>
+                        <p className="mt-2 text-2xl font-semibold">
+                            {new Intl.NumberFormat('pt-BR', {
+                                style: 'currency',
+                                currency: 'BRL',
+                            }).format(annualBalanceAmount)}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            Entradas menos saidas
+                        </p>
                     </div>
                 </div>
                 <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border border-sidebar-border/70 md:min-h-min dark:border-sidebar-border">
-                    <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
+                    <MonthlyBalanceTable rows={monthlyBalanceRows} />
                 </div>
             </div>
         </AppLayout>

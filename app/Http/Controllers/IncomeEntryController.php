@@ -15,6 +15,7 @@ class IncomeEntryController extends Controller
     public function index(Request $request): Response
     {
         $incomeSources = $request->user()->incomeSources()
+            ->where('type', '!=', IncomeSource::TYPE_SALARY)
             ->latest()
             ->get(['id', 'type', 'description', 'monthly_amount']);
 

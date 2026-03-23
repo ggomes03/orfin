@@ -65,7 +65,7 @@ export default function IncomeEntriesPage({
     });
 
     const entryForm = useForm({
-        entry_mode: 'source' as 'source' | 'simple',
+        entry_mode: (incomeSources.length > 0 ? 'source' : 'simple') as 'source' | 'simple',
         income_source_id: incomeSources[0]?.id ? String(incomeSources[0].id) : '',
         description: '',
         amount: '',
@@ -201,7 +201,7 @@ export default function IncomeEntriesPage({
                         <CardHeader>
                             <CardTitle>Nova entrada</CardTitle>
                             <CardDescription>
-                                Escolha se deseja lançar uma entrada por fonte de renda ou uma entrada simples avulsa.
+                                Fontes do tipo salario sao fixas e entram automaticamente no ano. Aqui voce lanca fontes nao salariais ou entradas avulsas.
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -297,7 +297,7 @@ export default function IncomeEntriesPage({
                                 </Button>
                                 {entryForm.data.entry_mode === 'source' && incomeSources.length === 0 && (
                                     <p className="text-sm text-amber-700">
-                                        Cadastre ao menos uma fonte de renda para usar este tipo de entrada.
+                                        Cadastre ao menos uma fonte de renda nao salarial para usar este tipo de entrada.
                                     </p>
                                 )}
                             </form>

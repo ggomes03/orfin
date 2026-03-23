@@ -114,3 +114,28 @@ test('user cannot create source based entry with source from another user', func
         'income_source_id' => $otherSource->id,
     ]);
 });
+
+test('user cannot create source based entry for salary source', function () {
+    $user = User::factory()->create();
+
+    $salarySource = IncomeSource::query()->create([
+        'user_id' => $user->id,
+        'type' => IncomeSource::TYPE_SALARY,
+        'description' => 'Salario CLT',
+        'monthly_amount' => '4500.00',
+    ]);
+
+    $response = $this->actingAs($user)->from(route('income.entries.index'))->post(route('income.entries.store'), [
+        'entry_mode' => IncomeEntry::TYPE_SOURCE,
+        'income_source_id' => $salarySource->id,
+        'entry_date' => '2026-03-23',
+    ]);
+
+    $response->assertRedirect(route('income.entries.index'));
+    $response->assertSessionHasErrors('income_source_id');
+
+    $this->assertDatabaseMissing('income_entries', [
+        'user_id' => $user->id,
+        'income_source_id' => $salarySource->id,
+    ]);
+});
