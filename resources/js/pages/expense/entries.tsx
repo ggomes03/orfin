@@ -61,6 +61,15 @@ export default function ExpenseEntriesPage({
     sourceTypeOptions: SourceTypeOption[];
     status?: string;
 }) {
+    const getTodayDateInputValue = () => {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = `${now.getMonth() + 1}`.padStart(2, '0');
+        const day = `${now.getDate()}`.padStart(2, '0');
+
+        return `${year}-${month}-${day}`;
+    };
+
     const sourceForm = useForm({
         type: sourceTypeOptions[0]?.value ?? 'fixed',
         description: '',
@@ -72,7 +81,7 @@ export default function ExpenseEntriesPage({
         expense_source_id: expenseSources[0]?.id ? String(expenseSources[0].id) : '',
         description: '',
         amount: '',
-        entry_date: new Date().toISOString().slice(0, 10),
+        entry_date: getTodayDateInputValue(),
     });
 
     const fixedSourceForm = useForm({
@@ -80,7 +89,15 @@ export default function ExpenseEntriesPage({
         monthly_amount: '',
     });
 
+    const simpleEntryForm = useForm({
+        description: '',
+        amount: '',
+        entry_date: '',
+    });
+
     const [editingFixedSourceId, setEditingFixedSourceId] = useState<number | null>(null);
+    const [editingSimpleEntryId, setEditingSimpleEntryId] = useState<number | null>(null);
+    const [editingEntryType, setEditingEntryType] = useState<'source' | 'simple' | null>(null);
 
     const sourceTypeLabelByValue = sourceTypeOptions.reduce(
         (accumulator, option) => {
@@ -95,24 +112,28 @@ export default function ExpenseEntriesPage({
         currency: 'BRL',
     });
 
-    const dateFormatter = new Intl.DateTimeFormat('pt-BR');
-
     const isFixedSource = sourceForm.data.type === 'fixed';
 
     const formatEntryDate = (value: string) => {
-        const normalizedValue = value.includes('T')
-            ? value
-            : value.includes(' ')
-              ? value.replace(' ', 'T')
-              : `${value}T00:00:00`;
+        const isoDateMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
 
-        const parsedDate = new Date(normalizedValue);
-
-        if (Number.isNaN(parsedDate.getTime())) {
+        if (!isoDateMatch) {
             return value;
         }
 
-        return dateFormatter.format(parsedDate);
+        const [, year, month, day] = isoDateMatch;
+
+        return `${day}/${month}/${year}`;
+    };
+
+    const normalizeDateInputValue = (value: string) => {
+        const isoDateMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+        if (!isoDateMatch) {
+            return '';
+        }
+
+        return `${isoDateMatch[1]}-${isoDateMatch[2]}-${isoDateMatch[3]}`;
     };
 
     const submitSource = (event: FormEvent<HTMLFormElement>) => {
@@ -173,6 +194,57 @@ export default function ExpenseEntriesPage({
         }
 
         router.delete(`/financeiro/fontes-saida-fixas/${sourceId}`, {
+            preserveScroll: true,
+        });
+    };
+
+    const startEditingSimpleEntry = (entry: ExpenseEntry) => {
+        setEditingSimpleEntryId(entry.id);
+        setEditingEntryType(entry.entry_type);
+        simpleEntryForm.setData('description', entry.description);
+        simpleEntryForm.setData('amount', entry.amount);
+        simpleEntryForm.setData('entry_date', normalizeDateInputValue(entry.entry_date));
+        simpleEntryForm.clearErrors();
+    };
+
+    const cancelEditingSimpleEntry = () => {
+        setEditingSimpleEntryId(null);
+        setEditingEntryType(null);
+        simpleEntryForm.reset();
+        simpleEntryForm.clearErrors();
+    };
+
+    const submitSimpleEntryUpdate = (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+
+        if (editingSimpleEntryId === null) {
+            return;
+        }
+
+        const updatePath = editingEntryType === 'source'
+            ? `/financeiro/saidas-fonte/${editingSimpleEntryId}`
+            : `/financeiro/saidas-avulsas/${editingSimpleEntryId}`;
+
+        simpleEntryForm.patch(updatePath, {
+            preserveScroll: true,
+            onSuccess: () => {
+                cancelEditingSimpleEntry();
+            },
+        });
+    };
+
+    const deleteSimpleEntry = (entryId: number, entryType: 'source' | 'simple') => {
+        const confirmed = window.confirm('Deseja realmente remover esta saida?');
+
+        if (!confirmed) {
+            return;
+        }
+
+        const deletePath = entryType === 'source'
+            ? `/financeiro/saidas-fonte/${entryId}`
+            : `/financeiro/saidas-avulsas/${entryId}`;
+
+        router.delete(deletePath, {
             preserveScroll: true,
         });
     };
@@ -506,35 +578,146 @@ export default function ExpenseEntriesPage({
                                             <th className="px-2 py-2 font-medium">Tipo</th>
                                             <th className="px-2 py-2 font-medium">Valor</th>
                                             <th className="px-2 py-2 font-medium">Data</th>
+                                            <th className="px-2 py-2 font-medium">Acoes</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {expenseEntries.map((entry) => (
                                             <tr key={entry.id} className="border-b last:border-0">
-                                                <td className="px-2 py-3">{entry.description}</td>
-                                                <td className="px-2 py-3">
-                                                    {entry.entry_type === 'source' ? (
-                                                        <Badge variant="secondary">
-                                                            Saida por fonte
-                                                        </Badge>
-                                                    ) : (
-                                                        <Badge variant="outline">
-                                                            Saida simples
-                                                        </Badge>
-                                                    )}
-                                                    {entry.expense_source?.type && (
-                                                        <span className="ml-2 text-xs text-muted-foreground">
-                                                            {sourceTypeLabelByValue[entry.expense_source.type] ??
-                                                                entry.expense_source.type}
-                                                        </span>
-                                                    )}
-                                                </td>
-                                                <td className="px-2 py-3">
-                                                    {currencyFormatter.format(Number(entry.amount))}
-                                                </td>
-                                                <td className="px-2 py-3">
-                                                    {formatEntryDate(entry.entry_date)}
-                                                </td>
+                                                {editingSimpleEntryId === entry.id ? (
+                                                    <td colSpan={5} className="px-2 py-3">
+                                                        <form
+                                                            className="grid gap-3 md:grid-cols-[2fr_1fr_1fr_auto] md:items-end"
+                                                            onSubmit={submitSimpleEntryUpdate}
+                                                        >
+                                                            <div className="grid gap-1">
+                                                                <Label htmlFor="simple_entry_description">
+                                                                    Descricao
+                                                                </Label>
+                                                                <Input
+                                                                    id="simple_entry_description"
+                                                                    value={simpleEntryForm.data.description}
+                                                                    onChange={(event) =>
+                                                                        simpleEntryForm.setData(
+                                                                            'description',
+                                                                            event.target.value,
+                                                                        )
+                                                                    }
+                                                                />
+                                                                <InputError
+                                                                    message={simpleEntryForm.errors.description}
+                                                                />
+                                                            </div>
+
+                                                            <div className="grid gap-1">
+                                                                <Label htmlFor="simple_entry_amount">
+                                                                    Valor
+                                                                </Label>
+                                                                <Input
+                                                                    id="simple_entry_amount"
+                                                                    type="number"
+                                                                    min="0"
+                                                                    step="0.01"
+                                                                    value={simpleEntryForm.data.amount}
+                                                                    onChange={(event) =>
+                                                                        simpleEntryForm.setData(
+                                                                            'amount',
+                                                                            event.target.value,
+                                                                        )
+                                                                    }
+                                                                />
+                                                                <InputError
+                                                                    message={simpleEntryForm.errors.amount}
+                                                                />
+                                                            </div>
+
+                                                            <div className="grid gap-1">
+                                                                <Label htmlFor="simple_entry_date">
+                                                                    Data
+                                                                </Label>
+                                                                <Input
+                                                                    id="simple_entry_date"
+                                                                    type="date"
+                                                                    value={simpleEntryForm.data.entry_date}
+                                                                    onChange={(event) =>
+                                                                        simpleEntryForm.setData(
+                                                                            'entry_date',
+                                                                            event.target.value,
+                                                                        )
+                                                                    }
+                                                                />
+                                                                <InputError
+                                                                    message={simpleEntryForm.errors.entry_date}
+                                                                />
+                                                            </div>
+
+                                                            <div className="flex gap-2">
+                                                                <Button
+                                                                    type="submit"
+                                                                    disabled={simpleEntryForm.processing}
+                                                                >
+                                                                    Salvar
+                                                                </Button>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    onClick={cancelEditingSimpleEntry}
+                                                                >
+                                                                    Cancelar
+                                                                </Button>
+                                                            </div>
+                                                        </form>
+                                                    </td>
+                                                ) : (
+                                                    <>
+                                                        <td className="px-2 py-3">{entry.description}</td>
+                                                        <td className="px-2 py-3">
+                                                            {entry.entry_type === 'source' ? (
+                                                                <Badge variant="secondary">
+                                                                    Saida por fonte
+                                                                </Badge>
+                                                            ) : (
+                                                                <Badge variant="outline">
+                                                                    Saida simples
+                                                                </Badge>
+                                                            )}
+                                                            {entry.expense_source?.type && (
+                                                                <span className="ml-2 text-xs text-muted-foreground">
+                                                                    {sourceTypeLabelByValue[entry.expense_source.type] ??
+                                                                        entry.expense_source.type}
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-2 py-3">
+                                                            {currencyFormatter.format(Number(entry.amount))}
+                                                        </td>
+                                                        <td className="px-2 py-3">
+                                                            {formatEntryDate(entry.entry_date)}
+                                                        </td>
+                                                        <td className="px-2 py-3">
+                                                            <div className="flex gap-2">
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    onClick={() =>
+                                                                        startEditingSimpleEntry(entry)
+                                                                    }
+                                                                >
+                                                                    Editar
+                                                                </Button>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="destructive"
+                                                                    onClick={() =>
+                                                                        deleteSimpleEntry(entry.id, entry.entry_type)
+                                                                    }
+                                                                >
+                                                                    Excluir
+                                                                </Button>
+                                                            </div>
+                                                        </td>
+                                                    </>
+                                                )}
                                             </tr>
                                         ))}
                                     </tbody>

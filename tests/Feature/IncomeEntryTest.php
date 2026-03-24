@@ -139,3 +139,95 @@ test('user cannot create source based entry for salary source', function () {
         'income_source_id' => $salarySource->id,
     ]);
 });
+
+test('authenticated user can update a simple income entry', function () {
+    $user = User::factory()->create();
+
+    $entry = IncomeEntry::query()->create([
+        'user_id' => $user->id,
+        'income_source_id' => null,
+        'entry_type' => IncomeEntry::TYPE_SIMPLE,
+        'description' => 'Entrada antiga',
+        'amount' => '200.00',
+        'entry_date' => '2026-03-21',
+    ]);
+
+    $response = $this->actingAs($user)->patch(route('income.entries.update', ['incomeEntryId' => $entry->id]), [
+        'description' => 'Entrada atualizada',
+        'amount' => '380.50',
+        'entry_date' => '2026-03-24',
+    ]);
+
+    $response->assertRedirect(route('income.entries.index'));
+
+    $this->assertDatabaseHas('income_entries', [
+        'id' => $entry->id,
+        'description' => 'Entrada atualizada',
+        'amount' => '380.50',
+        'entry_date' => '2026-03-24 00:00:00',
+    ]);
+});
+
+test('authenticated user can update a source based income entry', function () {
+    $user = User::factory()->create();
+
+    $source = IncomeSource::query()->create([
+        'user_id' => $user->id,
+        'type' => IncomeSource::TYPE_SERVICE_PROVISION,
+        'description' => 'Contrato mensal',
+        'monthly_amount' => '1800.00',
+    ]);
+
+    $entry = IncomeEntry::query()->create([
+        'user_id' => $user->id,
+        'income_source_id' => $source->id,
+        'entry_type' => IncomeEntry::TYPE_SOURCE,
+        'description' => 'Contrato antigo',
+        'amount' => '1800.00',
+        'entry_date' => '2026-03-21',
+    ]);
+
+    $response = $this->actingAs($user)->patch(route('income.entries.update', ['incomeEntryId' => $entry->id]), [
+        'description' => 'Contrato ajustado',
+        'amount' => '1900.00',
+        'entry_date' => '2026-03-24',
+    ]);
+
+    $response->assertRedirect(route('income.entries.index'));
+
+    $this->assertDatabaseHas('income_entries', [
+        'id' => $entry->id,
+        'entry_type' => IncomeEntry::TYPE_SOURCE,
+        'description' => 'Contrato ajustado',
+        'amount' => '1900.00',
+        'entry_date' => '2026-03-24 00:00:00',
+    ]);
+});
+
+test('user cannot update income entry from another user', function () {
+    $user = User::factory()->create();
+    $otherUser = User::factory()->create();
+
+    $entry = IncomeEntry::query()->create([
+        'user_id' => $otherUser->id,
+        'income_source_id' => null,
+        'entry_type' => IncomeEntry::TYPE_SIMPLE,
+        'description' => 'Entrada externa',
+        'amount' => '250.00',
+        'entry_date' => '2026-03-21',
+    ]);
+
+    $response = $this->actingAs($user)->patch(route('income.entries.update', ['incomeEntryId' => $entry->id]), [
+        'description' => 'Tentativa de alteracao',
+        'amount' => '100.00',
+        'entry_date' => '2026-03-22',
+    ]);
+
+    $response->assertNotFound();
+
+    $this->assertDatabaseHas('income_entries', [
+        'id' => $entry->id,
+        'description' => 'Entrada externa',
+        'amount' => '250.00',
+    ]);
+});

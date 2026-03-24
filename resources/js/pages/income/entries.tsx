@@ -1,5 +1,6 @@
 import { Head, useForm } from '@inertiajs/react';
 import type { FormEvent } from 'react';
+import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -58,6 +59,15 @@ export default function IncomeEntriesPage({
     sourceTypeOptions: SourceTypeOption[];
     status?: string;
 }) {
+    const getTodayDateInputValue = () => {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = `${now.getMonth() + 1}`.padStart(2, '0');
+        const day = `${now.getDate()}`.padStart(2, '0');
+
+        return `${year}-${month}-${day}`;
+    };
+
     const sourceForm = useForm({
         type: sourceTypeOptions[0]?.value ?? 'salary',
         description: '',
@@ -69,7 +79,7 @@ export default function IncomeEntriesPage({
         income_source_id: incomeSources[0]?.id ? String(incomeSources[0].id) : '',
         description: '',
         amount: '',
-        entry_date: new Date().toISOString().slice(0, 10),
+        entry_date: getTodayDateInputValue(),
     });
 
     const sourceTypeLabelByValue = sourceTypeOptions.reduce(
@@ -85,22 +95,24 @@ export default function IncomeEntriesPage({
         currency: 'BRL',
     });
 
-    const dateFormatter = new Intl.DateTimeFormat('pt-BR');
+    const entryUpdateForm = useForm({
+        description: '',
+        amount: '',
+        entry_date: '',
+    });
+
+    const [editingEntryId, setEditingEntryId] = useState<number | null>(null);
 
     const formatEntryDate = (value: string) => {
-        const normalizedValue = value.includes('T')
-            ? value
-            : value.includes(' ')
-              ? value.replace(' ', 'T')
-              : `${value}T00:00:00`;
+        const isoDateMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
 
-        const parsedDate = new Date(normalizedValue);
-
-        if (Number.isNaN(parsedDate.getTime())) {
+        if (!isoDateMatch) {
             return value;
         }
 
-        return dateFormatter.format(parsedDate);
+        const [, year, month, day] = isoDateMatch;
+
+        return `${day}/${month}/${year}`;
     };
 
     const submitSource = (event: FormEvent<HTMLFormElement>) => {
@@ -123,6 +135,45 @@ export default function IncomeEntriesPage({
                 if (entryForm.data.entry_mode === 'simple') {
                     entryForm.reset('description', 'amount');
                 }
+            },
+        });
+    };
+
+    const normalizeDateInputValue = (value: string) => {
+        const isoDateMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+        if (!isoDateMatch) {
+            return '';
+        }
+
+        return `${isoDateMatch[1]}-${isoDateMatch[2]}-${isoDateMatch[3]}`;
+    };
+
+    const startEditingEntry = (entry: IncomeEntry) => {
+        setEditingEntryId(entry.id);
+        entryUpdateForm.setData('description', entry.description);
+        entryUpdateForm.setData('amount', entry.amount);
+        entryUpdateForm.setData('entry_date', normalizeDateInputValue(entry.entry_date));
+        entryUpdateForm.clearErrors();
+    };
+
+    const cancelEditingEntry = () => {
+        setEditingEntryId(null);
+        entryUpdateForm.reset();
+        entryUpdateForm.clearErrors();
+    };
+
+    const submitEntryUpdate = (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+
+        if (editingEntryId === null) {
+            return;
+        }
+
+        entryUpdateForm.patch(`/financeiro/entradas/${editingEntryId}`, {
+            preserveScroll: true,
+            onSuccess: () => {
+                cancelEditingEntry();
             },
         });
     };
@@ -326,35 +377,133 @@ export default function IncomeEntriesPage({
                                             <th className="px-2 py-2 font-medium">Tipo</th>
                                             <th className="px-2 py-2 font-medium">Valor</th>
                                             <th className="px-2 py-2 font-medium">Data</th>
+                                            <th className="px-2 py-2 font-medium">Acoes</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {incomeEntries.map((entry) => (
                                             <tr key={entry.id} className="border-b last:border-0">
-                                                <td className="px-2 py-3">{entry.description}</td>
-                                                <td className="px-2 py-3">
-                                                    {entry.entry_type === 'source' ? (
-                                                        <Badge variant="secondary">
-                                                            Fonte mensal
-                                                        </Badge>
-                                                    ) : (
-                                                        <Badge variant="outline">
-                                                            Entrada simples
-                                                        </Badge>
-                                                    )}
-                                                    {entry.income_source?.type && (
-                                                        <span className="ml-2 text-xs text-muted-foreground">
-                                                            {sourceTypeLabelByValue[entry.income_source.type] ??
-                                                                entry.income_source.type}
-                                                        </span>
-                                                    )}
-                                                </td>
-                                                <td className="px-2 py-3">
-                                                    {currencyFormatter.format(Number(entry.amount))}
-                                                </td>
-                                                <td className="px-2 py-3">
-                                                    {formatEntryDate(entry.entry_date)}
-                                                </td>
+                                                {editingEntryId === entry.id ? (
+                                                    <td colSpan={5} className="px-2 py-3">
+                                                        <form
+                                                            className="grid gap-3 md:grid-cols-[2fr_1fr_1fr_auto] md:items-end"
+                                                            onSubmit={submitEntryUpdate}
+                                                        >
+                                                            <div className="grid gap-1">
+                                                                <Label htmlFor="income_entry_description">
+                                                                    Descricao
+                                                                </Label>
+                                                                <Input
+                                                                    id="income_entry_description"
+                                                                    value={entryUpdateForm.data.description}
+                                                                    onChange={(event) =>
+                                                                        entryUpdateForm.setData(
+                                                                            'description',
+                                                                            event.target.value,
+                                                                        )
+                                                                    }
+                                                                />
+                                                                <InputError
+                                                                    message={entryUpdateForm.errors.description}
+                                                                />
+                                                            </div>
+
+                                                            <div className="grid gap-1">
+                                                                <Label htmlFor="income_entry_amount">
+                                                                    Valor
+                                                                </Label>
+                                                                <Input
+                                                                    id="income_entry_amount"
+                                                                    type="number"
+                                                                    min="0"
+                                                                    step="0.01"
+                                                                    value={entryUpdateForm.data.amount}
+                                                                    onChange={(event) =>
+                                                                        entryUpdateForm.setData(
+                                                                            'amount',
+                                                                            event.target.value,
+                                                                        )
+                                                                    }
+                                                                />
+                                                                <InputError
+                                                                    message={entryUpdateForm.errors.amount}
+                                                                />
+                                                            </div>
+
+                                                            <div className="grid gap-1">
+                                                                <Label htmlFor="income_entry_date">
+                                                                    Data
+                                                                </Label>
+                                                                <Input
+                                                                    id="income_entry_date"
+                                                                    type="date"
+                                                                    value={entryUpdateForm.data.entry_date}
+                                                                    onChange={(event) =>
+                                                                        entryUpdateForm.setData(
+                                                                            'entry_date',
+                                                                            event.target.value,
+                                                                        )
+                                                                    }
+                                                                />
+                                                                <InputError
+                                                                    message={entryUpdateForm.errors.entry_date}
+                                                                />
+                                                            </div>
+
+                                                            <div className="flex gap-2">
+                                                                <Button
+                                                                    type="submit"
+                                                                    disabled={entryUpdateForm.processing}
+                                                                >
+                                                                    Salvar
+                                                                </Button>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    onClick={cancelEditingEntry}
+                                                                >
+                                                                    Cancelar
+                                                                </Button>
+                                                            </div>
+                                                        </form>
+                                                    </td>
+                                                ) : (
+                                                    <>
+                                                        <td className="px-2 py-3">{entry.description}</td>
+                                                        <td className="px-2 py-3">
+                                                            {entry.entry_type === 'source' ? (
+                                                                <Badge variant="secondary">
+                                                                    Fonte mensal
+                                                                </Badge>
+                                                            ) : (
+                                                                <Badge variant="outline">
+                                                                    Entrada simples
+                                                                </Badge>
+                                                            )}
+                                                            {entry.income_source?.type && (
+                                                                <span className="ml-2 text-xs text-muted-foreground">
+                                                                    {sourceTypeLabelByValue[entry.income_source.type] ??
+                                                                        entry.income_source.type}
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-2 py-3">
+                                                            {currencyFormatter.format(Number(entry.amount))}
+                                                        </td>
+                                                        <td className="px-2 py-3">
+                                                            {formatEntryDate(entry.entry_date)}
+                                                        </td>
+                                                        <td className="px-2 py-3">
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                onClick={() => startEditingEntry(entry)}
+                                                            >
+                                                                Editar
+                                                            </Button>
+                                                        </td>
+                                                    </>
+                                                )}
                                             </tr>
                                         ))}
                                     </tbody>

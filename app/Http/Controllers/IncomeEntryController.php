@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreIncomeEntryRequest;
+use App\Http\Requests\UpdateIncomeEntryRequest;
 use App\Models\IncomeEntry;
 use App\Models\IncomeSource;
 use Illuminate\Http\RedirectResponse;
@@ -63,5 +64,14 @@ class IncomeEntryController extends Controller
         ]);
 
         return to_route('income.entries.index')->with('status', 'Entrada simples cadastrada com sucesso.');
+    }
+
+    public function update(UpdateIncomeEntryRequest $request, int $incomeEntryId): RedirectResponse
+    {
+        $incomeEntry = $request->user()->incomeEntries()->findOrFail($incomeEntryId);
+
+        $incomeEntry->update($request->validated());
+
+        return to_route('income.entries.index')->with('status', 'Entrada atualizada com sucesso.');
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreExpenseEntryRequest;
+use App\Http\Requests\UpdateSimpleExpenseEntryRequest;
 use App\Models\ExpenseEntry;
 use App\Models\ExpenseSource;
 use Illuminate\Http\RedirectResponse;
@@ -69,5 +70,53 @@ class ExpenseEntryController extends Controller
         ]);
 
         return to_route('expense.entries.index')->with('status', 'Saida simples cadastrada com sucesso.');
+    }
+
+    public function update(UpdateSimpleExpenseEntryRequest $request, int $expenseEntryId): RedirectResponse
+    {
+        $expenseEntry = $request->user()->expenseEntries()
+            ->where('entry_type', ExpenseEntry::TYPE_SIMPLE)
+            ->whereNull('expense_source_id')
+            ->findOrFail($expenseEntryId);
+
+        $expenseEntry->update($request->validated());
+
+        return to_route('expense.entries.index')->with('status', 'Saida avulsa atualizada com sucesso.');
+    }
+
+    public function updateSource(UpdateSimpleExpenseEntryRequest $request, int $expenseEntryId): RedirectResponse
+    {
+        $expenseEntry = $request->user()->expenseEntries()
+            ->where('entry_type', ExpenseEntry::TYPE_SOURCE)
+            ->whereNotNull('expense_source_id')
+            ->findOrFail($expenseEntryId);
+
+        $expenseEntry->update($request->validated());
+
+        return to_route('expense.entries.index')->with('status', 'Saida por fonte atualizada com sucesso.');
+    }
+
+    public function destroy(Request $request, int $expenseEntryId): RedirectResponse
+    {
+        $expenseEntry = $request->user()->expenseEntries()
+            ->where('entry_type', ExpenseEntry::TYPE_SIMPLE)
+            ->whereNull('expense_source_id')
+            ->findOrFail($expenseEntryId);
+
+        $expenseEntry->delete();
+
+        return to_route('expense.entries.index')->with('status', 'Saida avulsa removida com sucesso.');
+    }
+
+    public function destroySource(Request $request, int $expenseEntryId): RedirectResponse
+    {
+        $expenseEntry = $request->user()->expenseEntries()
+            ->where('entry_type', ExpenseEntry::TYPE_SOURCE)
+            ->whereNotNull('expense_source_id')
+            ->findOrFail($expenseEntryId);
+
+        $expenseEntry->delete();
+
+        return to_route('expense.entries.index')->with('status', 'Saida por fonte removida com sucesso.');
     }
 }

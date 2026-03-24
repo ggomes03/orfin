@@ -175,3 +175,67 @@ test('dashboard projects annual fixed expenses and keeps credit card monthly man
         ->where('exerciseYear', now()->year),
     );
 });
+
+test('dashboard returns monthly detail when month query is provided', function () {
+    $user = User::factory()->create();
+
+    IncomeSource::query()->create([
+        'user_id' => $user->id,
+        'type' => IncomeSource::TYPE_SALARY,
+        'description' => 'Salario principal',
+        'monthly_amount' => '3000.00',
+    ]);
+
+    IncomeEntry::query()->create([
+        'user_id' => $user->id,
+        'income_source_id' => null,
+        'entry_type' => IncomeEntry::TYPE_SIMPLE,
+        'description' => 'Entrada detalhada',
+        'amount' => 800,
+        'entry_date' => now()->startOfYear()->addMonth()->toDateString(),
+    ]);
+
+    ExpenseEntry::query()->create([
+        'user_id' => $user->id,
+        'expense_source_id' => null,
+        'entry_type' => ExpenseEntry::TYPE_SIMPLE,
+        'description' => 'Saida detalhada',
+        'amount' => 300,
+        'entry_date' => now()->startOfYear()->addMonth()->toDateString(),
+    ]);
+
+    ExpenseSource::query()->create([
+        'user_id' => $user->id,
+        'type' => ExpenseSource::TYPE_FIXED,
+        'description' => 'Internet',
+        'monthly_amount' => '120.00',
+    ]);
+
+    $response = $this->actingAs($user)->get(route('dashboard', ['month' => 2]));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page
+        ->component('dashboard')
+        ->where('selectedMonth', 2)
+        ->where('selectedMonthDetail.month', 2)
+        ->where('selectedMonthDetail.incomeTotalAmount', 3800)
+        ->where('selectedMonthDetail.expenseTotalAmount', 420)
+        ->where('selectedMonthDetail.incomeItems.0.description', 'Entrada detalhada')
+        ->where('selectedMonthDetail.incomeItems.1.description', 'Salario principal')
+        ->where('selectedMonthDetail.expenseItems.0.description', 'Saida detalhada')
+        ->where('selectedMonthDetail.expenseItems.1.description', 'Internet'),
+    );
+});
+
+test('dashboard ignores invalid month query and returns no monthly detail', function () {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)->get(route('dashboard', ['month' => 99]));
+
+    $response->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page
+        ->component('dashboard')
+        ->where('selectedMonth', null)
+        ->where('selectedMonthDetail', null),
+    );
+});

@@ -1,3 +1,6 @@
+import { Badge } from '@/components/ui/badge';
+import { router } from '@inertiajs/react';
+
 type MonthlyBalanceRow = {
     month: number;
     incomeAmount: number;
@@ -27,8 +30,10 @@ function formatMonthLabel(month: number) {
 
 export default function MonthlyBalanceTable({
     rows,
+    selectedMonth,
 }: {
     rows: MonthlyBalanceRow[];
+    selectedMonth: number | null;
 }) {
     return (
         <div className="overflow-x-auto p-4 md:p-6">
@@ -43,18 +48,40 @@ export default function MonthlyBalanceTable({
                 </thead>
                 <tbody>
                     {rows.map((row) => (
-                        <tr key={row.month} className="border-b last:border-0">
+                        <tr
+                            key={row.month}
+                            className={
+                                row.month === selectedMonth
+                                    ? 'cursor-pointer border-b bg-emerald-50/40 transition-colors hover:bg-emerald-50/60 last:border-0 dark:bg-emerald-900/10 dark:hover:bg-emerald-900/20'
+                                    : 'cursor-pointer border-b transition-colors hover:bg-muted/40 last:border-0'
+                            }
+                            onClick={() => {
+                                router.get('/dashboard', { month: row.month }, { preserveScroll: true });
+                            }}
+                        >
                             <td className="px-2 py-3 font-medium">
                                 {formatMonthLabel(row.month)}
                             </td>
                             <td className="px-2 py-3">
-                                {currencyFormatter.format(row.incomeAmount)}
+                                <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">
+                                    {currencyFormatter.format(row.incomeAmount)}
+                                </Badge>
                             </td>
                             <td className="px-2 py-3">
-                                {currencyFormatter.format(row.expenseAmount)}
+                                <Badge className="bg-red-100 text-red-800 hover:bg-red-100">
+                                    {currencyFormatter.format(row.expenseAmount)}
+                                </Badge>
                             </td>
                             <td className="px-2 py-3 font-medium">
-                                {currencyFormatter.format(row.balanceAmount)}
+                                <Badge
+                                    className={
+                                        row.balanceAmount >= 0
+                                            ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100'
+                                            : 'bg-red-100 text-red-800 hover:bg-red-100'
+                                    }
+                                >
+                                    {currencyFormatter.format(row.balanceAmount)}
+                                </Badge>
                             </td>
                         </tr>
                     ))}
