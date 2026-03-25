@@ -15,6 +15,13 @@ class IncomeEntryController extends Controller
 {
     public function index(Request $request): Response
     {
+        $currentYear = now()->year;
+        $exerciseYear = (int) $request->session()->get('exercise_year', $currentYear);
+
+        if ($exerciseYear < 1970 || $exerciseYear > $currentYear) {
+            $exerciseYear = $currentYear;
+        }
+
         $incomeSources = $request->user()->incomeSources()
             ->where('type', '!=', IncomeSource::TYPE_SALARY)
             ->latest()
@@ -22,6 +29,7 @@ class IncomeEntryController extends Controller
 
         $incomeEntries = $request->user()->incomeEntries()
             ->with('incomeSource:id,type,description')
+            ->whereYear('entry_date', $exerciseYear)
             ->latest('entry_date')
             ->latest('id')
             ->get(['id', 'income_source_id', 'entry_type', 'description', 'amount', 'entry_date']);
@@ -34,6 +42,7 @@ class IncomeEntryController extends Controller
             'incomeSources' => $incomeSources,
             'incomeEntries' => $incomeEntries,
             'sourceTypeOptions' => $sourceTypeOptions,
+            'exerciseYear' => $exerciseYear,
             'status' => $request->session()->get('status'),
         ]);
     }

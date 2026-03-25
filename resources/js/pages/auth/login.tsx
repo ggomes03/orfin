@@ -25,7 +25,7 @@ export default function Login({
     return (
         <>
             <Head title="Log in" />
-            <div className="grid min-h-svh grid-cols-1 md:grid-cols-[40%_60%]">
+            <div className="grid min-h-svh grid-cols-1 md:grid-cols-[45%_55%]">
                 <aside className="relative hidden overflow-hidden md:block">
                     <div
                         className="absolute inset-0"
@@ -51,16 +51,26 @@ export default function Login({
                                 'repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.5) 0px, rgba(255, 255, 255, 0.5) 1px, transparent 1px, transparent 3px)',
                         }}
                     />
+                    <div className="relative z-10 flex h-full flex-col items-center justify-center gap-8 px-8 py-12">
+                        <h1 className="rounded-lg border border-white/90 px-6 py-2 text-5xl font-semibold tracking-[0.12em] text-white/95 drop-shadow-[0_10px_20px_rgba(5,25,14,0.35)]">
+                            OrFin
+                        </h1>
+                        <img
+                            src="/images/svgs/undraw_secure-login_m11a.svg"
+                            alt="Ilustracao de login seguro"
+                            className="h-auto w-full max-w-[430px] drop-shadow-[0_24px_48px_rgba(8,32,18,0.28)]"
+                        />
+                    </div>
                 </aside>
 
                 <section className="flex items-center justify-center bg-[#f2f5f2] px-6 py-10 sm:px-10">
                     <div className="w-full max-w-md rounded-3xl border border-[#d8e2d9] bg-white p-7 shadow-[0_28px_60px_-34px_rgba(15,38,23,0.42)] sm:p-9">
                         <div className="space-y-2 text-center">
                             <h1 className="text-3xl font-semibold tracking-tight text-[#112919] sm:text-[2rem]">
-                                Log in to your account
+                                Log in
                             </h1>
                             <p className="text-sm text-[#365140]">
-                                Enter your email and password below to log in
+                                Digite seu email e senha abaixo para fazer login
                             </p>
                         </div>
 
@@ -77,7 +87,7 @@ export default function Login({
                                                 htmlFor="email"
                                                 className="text-[#183523]"
                                             >
-                                                Email address
+                                                Endereço de email
                                             </Label>
                                             <Input
                                                 id="email"
@@ -99,7 +109,7 @@ export default function Login({
                                                     htmlFor="password"
                                                     className="text-[#183523]"
                                                 >
-                                                    Password
+                                                    Senha
                                                 </Label>
                                                 {canResetPassword && (
                                                     <TextLink
@@ -107,7 +117,7 @@ export default function Login({
                                                         className="ml-auto text-sm text-[#2e5840] decoration-[#4d7b60] hover:text-[#173625]"
                                                         tabIndex={5}
                                                     >
-                                                        Forgot password?
+                                                        Esqueceu a senha?
                                                     </TextLink>
                                                 )}
                                             </div>
@@ -136,7 +146,7 @@ export default function Login({
                                                 htmlFor="remember"
                                                 className="text-[#355443]"
                                             >
-                                                Remember me
+                                                Lembrar-me
                                             </Label>
                                         </div>
 
@@ -148,19 +158,19 @@ export default function Login({
                                             data-test="login-button"
                                         >
                                             {processing && <Spinner />}
-                                            Log in
+                                            Acessar
                                         </Button>
                                     </div>
 
                                     {canRegister && (
                                         <div className="text-center text-sm text-[#365443]">
-                                            Don't have an account?{' '}
+                                            Não tem uma conta?{' '}
                                             <TextLink
                                                 href={register()}
                                                 className="text-[#123720] decoration-[#3f6e53] hover:text-[#0c2918]"
                                                 tabIndex={5}
                                             >
-                                                Sign up
+                                                Criar conta
                                             </TextLink>
                                         </div>
                                     )}

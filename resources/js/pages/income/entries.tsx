@@ -52,16 +52,18 @@ export default function IncomeEntriesPage({
     incomeSources,
     incomeEntries,
     sourceTypeOptions,
+    exerciseYear,
     status,
 }: {
     incomeSources: IncomeSource[];
     incomeEntries: IncomeEntry[];
     sourceTypeOptions: SourceTypeOption[];
+    exerciseYear: number;
     status?: string;
 }) {
     const getTodayDateInputValue = () => {
         const now = new Date();
-        const year = now.getFullYear();
+        const year = exerciseYear;
         const month = `${now.getMonth() + 1}`.padStart(2, '0');
         const day = `${now.getDate()}`.padStart(2, '0');
 
@@ -183,6 +185,10 @@ export default function IncomeEntriesPage({
             <Head title="Entradas" />
 
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+                <div className="rounded-lg border border-sidebar-border/70 bg-background px-4 py-2 text-sm text-muted-foreground dark:border-sidebar-border">
+                    Exercicio selecionado: <span className="font-semibold text-foreground">{exerciseYear}</span>
+                </div>
+
                 {status && (
                     <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
                         {status}

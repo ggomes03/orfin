@@ -1,21 +1,29 @@
 import { Badge } from '@/components/ui/badge';
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 
-type MonthlyDetailItem = {
-    id: number;
-    description: string;
+type BudgetAllocationItem = {
+    key: string;
+    label: string;
+    percentage: number;
     amount: number;
-    entryDate: string;
-    typeLabel?: string | null;
 };
 
 type MonthlyDetail = {
     month: number;
-    incomeItems: MonthlyDetailItem[];
-    expenseItems: MonthlyDetailItem[];
-    incomeTotalAmount: number;
-    expenseTotalAmount: number;
-    balanceAmount: number;
+    referenceIncomeAmount: number;
+    items: BudgetAllocationItem[];
+    unallocatedPercentage: number;
+    unallocatedAmount: number;
 };
+
+type AnnualDetail = {
+    referenceIncomeAmount: number;
+    items: BudgetAllocationItem[];
+    unallocatedPercentage: number;
+    unallocatedAmount: number;
+};
+
+const colors = ['#16a34a', '#0284c7', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6'];
 
 const currencyFormatter = new Intl.NumberFormat('pt-BR', {
     style: 'currency',
@@ -37,115 +45,126 @@ function formatMonthLabel(month: number) {
     return `${firstLetter.toUpperCase()}${remainingLetters.join('')}`;
 }
 
-function formatDate(value: string) {
-    const isoDateMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
-
-    if (!isoDateMatch) {
-        return value;
-    }
-
-    const [, year, month, day] = isoDateMatch;
-
-    return `${day}/${month}/${year}`;
-}
-
-function DetailList({
-    title,
-    items,
-    emptyMessage,
-    className,
-    itemClassName,
-}: {
-    title: string;
-    items: MonthlyDetailItem[];
-    emptyMessage: string;
-    className?: string;
-    itemClassName?: string;
-}) {
-    return (
-        <div className={`rounded-lg border p-3 ${className ?? 'border-sidebar-border/70 dark:border-sidebar-border'}`}>
-            <p className="text-sm font-semibold">{title}</p>
-            {items.length === 0 ? (
-                <p className="mt-2 text-xs text-muted-foreground">{emptyMessage}</p>
-            ) : (
-                <div className="mt-3 space-y-2">
-                    {items.map((item) => (
-                        <div
-                            key={item.id}
-                            className={`rounded-md border p-2 ${itemClassName ?? 'border-sidebar-border/60 dark:border-sidebar-border'}`}
-                        >
-                            <div className="flex items-center justify-between gap-2">
-                                <p className="text-sm font-medium">{item.description}</p>
-                                <Badge variant="outline">{currencyFormatter.format(item.amount)}</Badge>
-                            </div>
-                            <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                                <span>{formatDate(item.entryDate)}</span>
-                                {item.typeLabel && <span>• {item.typeLabel}</span>}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-}
-
 export default function MonthlyEntriesExpensesDetail({
     detail,
+    annualDetail,
+    exerciseYear,
 }: {
     detail: MonthlyDetail | null;
+    annualDetail: AnnualDetail;
+    exerciseYear: number;
 }) {
-    if (!detail) {
-        return (
-            <div className="rounded-xl border border-dashed border-sidebar-border/70 bg-background p-6 dark:border-sidebar-border">
-                <p className="text-sm font-medium text-muted-foreground">
-                    Detalhamento mensal
-                </p>
-                <p className="mt-2 text-sm text-muted-foreground">
-                    Clique em "Detalhar" em um mes da tabela para ver entradas e saidas deste periodo.
-                </p>
-            </div>
-        );
+    const isMonthlyView = detail !== null;
+    const currentDetail = detail ?? annualDetail;
+
+    const chartData = currentDetail.items
+        .map((item, index) => ({
+            name: item.label,
+            value: item.percentage,
+            color: colors[index % colors.length],
+        }))
+        .filter((item) => item.value > 0);
+
+    if (currentDetail.unallocatedPercentage > 0) {
+        chartData.push({
+            name: 'Nao alocado',
+            value: currentDetail.unallocatedPercentage,
+            color: '#e5e7eb',
+        });
     }
+
+    const effectiveChartData = chartData.length > 0
+        ? chartData
+        : [{ name: 'Nao alocado', value: 100, color: '#e5e7eb' }];
 
     return (
         <div className="rounded-xl border border-sidebar-border/70 bg-background p-6 dark:border-sidebar-border">
             <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-medium text-muted-foreground">Detalhamento mensal</p>
-                <Badge variant="secondary">{formatMonthLabel(detail.month)}</Badge>
+                <p className="text-sm font-medium text-muted-foreground">
+                    {isMonthlyView ? 'Orcamento mensal' : 'Orcamento anual'}
+                </p>
+                <Badge variant="secondary">
+                    {isMonthlyView ? formatMonthLabel(detail.month) : `Ano ${exerciseYear}`}
+                </Badge>
             </div>
+
+            {!isMonthlyView && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                    Visao anual exibida por padrao. Clique em um mes da tabela para ver os valores mensais.
+                </p>
+            )}
 
             <div className="mt-4 grid gap-2 md:grid-cols-3">
                 <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">
-                    Entradas: {currencyFormatter.format(detail.incomeTotalAmount)}
+                    Entradas do periodo: {currencyFormatter.format(currentDetail.referenceIncomeAmount)}
                 </Badge>
-                <Badge className="border border-red-300 bg-red-100 text-red-800 hover:bg-red-100 dark:border-red-700">
-                    Saidas: {currencyFormatter.format(detail.expenseTotalAmount)}
+                <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
+                    Nao alocado: {currentDetail.unallocatedPercentage}%
                 </Badge>
-                <Badge
-                    className={
-                        detail.balanceAmount >= 0
-                            ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100'
-                            : 'bg-red-100 text-red-800 hover:bg-red-100'
-                    }
-                >
-                    Saldo: {currencyFormatter.format(detail.balanceAmount)}
+                <Badge className="border border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-50 dark:border-blue-700">
+                    Valor nao alocado: {currencyFormatter.format(currentDetail.unallocatedAmount)}
                 </Badge>
             </div>
 
-            <div className="mt-4 grid gap-3 lg:grid-cols-2">
-                <DetailList
-                    title="Entradas do mes"
-                    items={detail.incomeItems}
-                    emptyMessage="Nenhuma entrada encontrada para este mes."
-                />
-                <DetailList
-                    title="Saidas do mes"
-                    items={detail.expenseItems}
-                    emptyMessage="Nenhuma saida encontrada para este mes."
-                    className="border-red-300 dark:border-red-700"
-                    itemClassName="border-red-200 dark:border-red-800"
-                />
+            <div className="mt-4 grid gap-4 lg:grid-cols-[320px_1fr]">
+                <div className="relative h-80 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                            <Pie
+                                data={effectiveChartData}
+                                dataKey="value"
+                                nameKey="name"
+                                innerRadius={52}
+                                outerRadius={130}
+                                stroke="none"
+                            >
+                                {effectiveChartData.map((entry) => (
+                                    <Cell key={entry.name} fill={entry.color} />
+                                ))}
+                            </Pie>
+                            <Tooltip
+                                formatter={(value) => `${Number(value ?? 0)}%`}
+                                contentStyle={{ borderRadius: '10px', borderColor: '#d1d5db' }}
+                            />
+                        </PieChart>
+                    </ResponsiveContainer>
+                    <div className="pointer-events-none absolute inset-0 grid place-items-center">
+                        <div className="flex h-28 w-28 flex-col items-center justify-center rounded-full bg-background/95 text-center">
+                            <p className="text-[10px] uppercase leading-tight tracking-wide text-muted-foreground">
+                                Total
+                            </p>
+                            <p className="text-[10px] uppercase leading-tight tracking-wide text-muted-foreground">
+                                alocado
+                            </p>
+                            <p className="mt-1 text-xl leading-none font-semibold">
+                                {100 - currentDetail.unallocatedPercentage}%
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="space-y-2">
+                    {currentDetail.items.map((item, index) => (
+                        <div
+                            key={item.key}
+                            className="flex items-center justify-between rounded-md border border-sidebar-border/60 p-3 dark:border-sidebar-border"
+                        >
+                            <div className="flex items-center gap-2">
+                                <span
+                                    className="h-3 w-3 rounded-full"
+                                    style={{ backgroundColor: colors[index % colors.length] }}
+                                />
+                                <p className="text-sm font-medium">{item.label}</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-sm font-semibold">{item.percentage}%</p>
+                                <p className="text-xs text-muted-foreground">
+                                    {currencyFormatter.format(item.amount)}
+                                </p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
             </div>
         </div>
     );

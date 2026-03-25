@@ -5,6 +5,10 @@ declare module '@inertiajs/core' {
         sharedPageProps: {
             name: string;
             auth: Auth;
+            exerciseYear: {
+                selected: number;
+                options: number[];
+            };
             sidebarOpen: boolean;
             [key: string]: unknown;
         };

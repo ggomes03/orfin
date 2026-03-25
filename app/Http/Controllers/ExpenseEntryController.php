@@ -15,6 +15,13 @@ class ExpenseEntryController extends Controller
 {
     public function index(Request $request): Response
     {
+        $currentYear = now()->year;
+        $exerciseYear = (int) $request->session()->get('exercise_year', $currentYear);
+
+        if ($exerciseYear < 1970 || $exerciseYear > $currentYear) {
+            $exerciseYear = $currentYear;
+        }
+
         $fixedExpenseSources = $request->user()->expenseSources()
             ->where('type', ExpenseSource::TYPE_FIXED)
             ->latest()
@@ -27,6 +34,7 @@ class ExpenseEntryController extends Controller
 
         $expenseEntries = $request->user()->expenseEntries()
             ->with('expenseSource:id,type,description')
+            ->whereYear('entry_date', $exerciseYear)
             ->latest('entry_date')
             ->latest('id')
             ->get(['id', 'expense_source_id', 'entry_type', 'description', 'amount', 'entry_date']);
@@ -40,6 +48,7 @@ class ExpenseEntryController extends Controller
             'expenseSources' => $expenseSources,
             'expenseEntries' => $expenseEntries,
             'sourceTypeOptions' => $sourceTypeOptions,
+            'exerciseYear' => $exerciseYear,
             'status' => $request->session()->get('status'),
         ]);
     }

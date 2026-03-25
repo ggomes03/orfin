@@ -18,6 +18,7 @@ export default function Dashboard({
     annualBalanceAmount,
     exerciseYear,
     monthlyBalanceRows,
+    annualBudgetDetail,
     selectedMonth,
     selectedMonthDetail,
 }: {
@@ -32,25 +33,28 @@ export default function Dashboard({
         expenseAmount: number;
         balanceAmount: number;
     }[];
+    annualBudgetDetail: {
+        referenceIncomeAmount: number;
+        items: {
+            key: string;
+            label: string;
+            percentage: number;
+            amount: number;
+        }[];
+        unallocatedPercentage: number;
+        unallocatedAmount: number;
+    };
     selectedMonthDetail: {
         month: number;
-        incomeItems: {
-            id: number;
-            description: string;
+        referenceIncomeAmount: number;
+        items: {
+            key: string;
+            label: string;
+            percentage: number;
             amount: number;
-            entryDate: string;
-            typeLabel?: string | null;
         }[];
-        expenseItems: {
-            id: number;
-            description: string;
-            amount: number;
-            entryDate: string;
-            typeLabel?: string | null;
-        }[];
-        incomeTotalAmount: number;
-        expenseTotalAmount: number;
-        balanceAmount: number;
+        unallocatedPercentage: number;
+        unallocatedAmount: number;
     } | null;
 }) {
     return (
@@ -111,7 +115,7 @@ export default function Dashboard({
                     <div className="relative overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
                         <MonthlyBalanceTable rows={monthlyBalanceRows} selectedMonth={selectedMonth} />
                     </div>
-                    <MonthlyEntriesExpensesDetail detail={selectedMonthDetail} />
+                    <MonthlyEntriesExpensesDetail detail={selectedMonthDetail} annualDetail={annualBudgetDetail} exerciseYear={exerciseYear} />
                 </div>
             </div>
         </AppLayout>

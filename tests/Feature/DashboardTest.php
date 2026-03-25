@@ -4,6 +4,7 @@ use App\Models\ExpenseEntry;
 use App\Models\ExpenseSource;
 use App\Models\IncomeEntry;
 use App\Models\IncomeSource;
+use App\Models\BudgetAllocation;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -25,6 +26,10 @@ test('authenticated users can visit the dashboard', function () {
         ->where('annualIncomeAmount', 0)
         ->where('annualExpenseAmount', 0)
         ->where('annualBalanceAmount', 0)
+        ->where('annualBudgetDetail.referenceIncomeAmount', 0)
+        ->where('annualBudgetDetail.unallocatedPercentage', 100)
+        ->where('selectedMonth', null)
+        ->where('selectedMonthDetail', null)
         ->where('exerciseYear', now()->year),
     );
 });
@@ -179,6 +184,18 @@ test('dashboard projects annual fixed expenses and keeps credit card monthly man
 test('dashboard returns monthly detail when month query is provided', function () {
     $user = User::factory()->create();
 
+    BudgetAllocation::query()->create([
+        'user_id' => $user->id,
+        'category' => BudgetAllocation::CATEGORY_FINANCIAL_FREEDOM,
+        'percentage' => 40,
+    ]);
+
+    BudgetAllocation::query()->create([
+        'user_id' => $user->id,
+        'category' => BudgetAllocation::CATEGORY_FIXED_COSTS,
+        'percentage' => 30,
+    ]);
+
     IncomeSource::query()->create([
         'user_id' => $user->id,
         'type' => IncomeSource::TYPE_SALARY,
@@ -218,12 +235,15 @@ test('dashboard returns monthly detail when month query is provided', function (
         ->component('dashboard')
         ->where('selectedMonth', 2)
         ->where('selectedMonthDetail.month', 2)
-        ->where('selectedMonthDetail.incomeTotalAmount', 3800)
-        ->where('selectedMonthDetail.expenseTotalAmount', 420)
-        ->where('selectedMonthDetail.incomeItems.0.description', 'Entrada detalhada')
-        ->where('selectedMonthDetail.incomeItems.1.description', 'Salario principal')
-        ->where('selectedMonthDetail.expenseItems.0.description', 'Saida detalhada')
-        ->where('selectedMonthDetail.expenseItems.1.description', 'Internet'),
+        ->where('selectedMonthDetail.referenceIncomeAmount', 3800)
+        ->where('selectedMonthDetail.items.0.label', 'Liberdade financeira')
+        ->where('selectedMonthDetail.items.0.percentage', 40)
+        ->where('selectedMonthDetail.items.0.amount', 1520)
+        ->where('selectedMonthDetail.items.1.label', 'Custos fixos')
+        ->where('selectedMonthDetail.items.1.percentage', 30)
+        ->where('selectedMonthDetail.items.1.amount', 1140)
+        ->where('selectedMonthDetail.unallocatedPercentage', 30)
+        ->where('selectedMonthDetail.unallocatedAmount', 1140),
     );
 });
 
