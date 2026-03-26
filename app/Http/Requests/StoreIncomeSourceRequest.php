@@ -28,6 +28,7 @@ class StoreIncomeSourceRequest extends FormRequest
             'type' => ['required', 'string', Rule::in(array_keys(IncomeSource::typeLabels()))],
             'description' => ['required', 'string', 'max:255'],
             'monthly_amount' => ['required', 'numeric', 'gt:0'],
+            'effective_from' => ['required', 'date'],
         ];
     }
 }

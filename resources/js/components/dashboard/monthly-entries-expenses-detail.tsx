@@ -1,5 +1,5 @@
-import { Badge } from '@/components/ui/badge';
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
+import { Badge } from '@/components/ui/badge';
 
 type BudgetAllocationItem = {
     key: string;

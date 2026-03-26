@@ -27,11 +27,22 @@ class StoreExpenseSourceRequest extends FormRequest
         return [
             'type' => ['required', 'string', Rule::in(array_keys(ExpenseSource::typeLabels()))],
             'description' => ['required', 'string', 'max:255'],
+            'category_id' => [
+                Rule::requiredIf(fn () => $this->input('type') === ExpenseSource::TYPE_FIXED),
+                'nullable',
+                'integer',
+                Rule::exists('expense_categories', 'id'),
+            ],
             'monthly_amount' => [
                 Rule::requiredIf(fn () => $this->input('type') === ExpenseSource::TYPE_FIXED),
                 'nullable',
                 'numeric',
                 'gt:0',
+            ],
+            'effective_from' => [
+                Rule::requiredIf(fn () => $this->input('type') === ExpenseSource::TYPE_FIXED),
+                'nullable',
+                'date',
             ],
         ];
     }

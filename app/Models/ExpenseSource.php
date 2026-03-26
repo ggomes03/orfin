@@ -16,13 +16,16 @@ class ExpenseSource extends Model
         'user_id',
         'type',
         'description',
+        'category_id',
         'monthly_amount',
+        'monthly_amount_started_at',
     ];
 
     protected function casts(): array
     {
         return [
             'monthly_amount' => 'decimal:2',
+            'monthly_amount_started_at' => 'date',
         ];
     }
 
@@ -42,5 +45,15 @@ class ExpenseSource extends Model
     public function entries(): HasMany
     {
         return $this->hasMany(ExpenseEntry::class);
+    }
+
+    public function expenseCategory(): BelongsTo
+    {
+        return $this->belongsTo(ExpenseCategory::class, 'category_id');
+    }
+
+    public function amountHistories(): HasMany
+    {
+        return $this->hasMany(ExpenseSourceAmountHistory::class);
     }
 }

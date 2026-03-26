@@ -6,6 +6,7 @@ use App\Models\BudgetAllocation;
 use App\Models\ExpenseSource;
 use App\Models\IncomeSource;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -33,11 +34,25 @@ class GetDashboardDataUseCase
             ->groupByRaw($monthExpression)
             ->pluck('total_amount', 'month_number');
 
-        $salaryMonthlyProjectionAmount = (float) $user->incomeSources()
+        $salarySources = $user->incomeSources()
             ->where('type', IncomeSource::TYPE_SALARY)
-            ->sum('monthly_amount');
+            ->with([
+                'amountHistories' => fn ($query) => $query
+                    ->whereDate('effective_from', '<=', sprintf('%d-12-31', $exerciseYear))
+                    ->orderBy('effective_from')
+                    ->orderBy('id'),
+            ])
+            ->get(['id', 'monthly_amount', 'monthly_amount_started_at']);
 
-        $salaryAnnualProjectionAmount = $salaryMonthlyProjectionAmount * 12;
+        $salaryProjectionByMonth = collect(range(1, 12))->mapWithKeys(
+            fn (int $month) => [
+                $month => $salarySources->sum(
+                    fn (IncomeSource $source) => $this->resolveMonthlyProjectedAmount($source, $exerciseYear, $month)
+                ),
+            ]
+        );
+
+        $salaryAnnualProjectionAmount = (float) $salaryProjectionByMonth->sum();
         $annualIncomeAmount = $manualAnnualIncomeAmount + $salaryAnnualProjectionAmount;
 
         $manualExpenseEntriesQuery = $user->expenseEntries()
@@ -55,18 +70,32 @@ class GetDashboardDataUseCase
             ->groupByRaw($monthExpression)
             ->pluck('total_amount', 'month_number');
 
-        $fixedExpenseMonthlyProjectionAmount = (float) $user->expenseSources()
+        $fixedExpenseSources = $user->expenseSources()
             ->where('type', ExpenseSource::TYPE_FIXED)
-            ->sum('monthly_amount');
+            ->with([
+                'amountHistories' => fn ($query) => $query
+                    ->whereDate('effective_from', '<=', sprintf('%d-12-31', $exerciseYear))
+                    ->orderBy('effective_from')
+                    ->orderBy('id'),
+            ])
+            ->get(['id', 'monthly_amount', 'monthly_amount_started_at']);
 
-        $fixedExpenseAnnualProjectionAmount = $fixedExpenseMonthlyProjectionAmount * 12;
+        $fixedExpenseProjectionByMonth = collect(range(1, 12))->mapWithKeys(
+            fn (int $month) => [
+                $month => $fixedExpenseSources->sum(
+                    fn (ExpenseSource $source) => $this->resolveMonthlyProjectedAmount($source, $exerciseYear, $month)
+                ),
+            ]
+        );
+
+        $fixedExpenseAnnualProjectionAmount = (float) $fixedExpenseProjectionByMonth->sum();
         $annualExpenseAmount = $manualAnnualExpenseAmount + $fixedExpenseAnnualProjectionAmount;
         $annualBalanceAmount = $annualIncomeAmount - $annualExpenseAmount;
 
         $monthlyBalanceRows = collect(range(1, 12))->map(
-            function (int $month) use ($manualIncomeByMonth, $salaryMonthlyProjectionAmount, $manualExpenseByMonth, $fixedExpenseMonthlyProjectionAmount): array {
-                $monthlyIncomeAmount = (float) ($manualIncomeByMonth[$month] ?? 0) + $salaryMonthlyProjectionAmount;
-                $monthlyExpenseAmount = (float) ($manualExpenseByMonth[$month] ?? 0) + $fixedExpenseMonthlyProjectionAmount;
+            function (int $month) use ($manualIncomeByMonth, $salaryProjectionByMonth, $manualExpenseByMonth, $fixedExpenseProjectionByMonth): array {
+                $monthlyIncomeAmount = (float) ($manualIncomeByMonth[$month] ?? 0) + (float) ($salaryProjectionByMonth[$month] ?? 0);
+                $monthlyExpenseAmount = (float) ($manualExpenseByMonth[$month] ?? 0) + (float) ($fixedExpenseProjectionByMonth[$month] ?? 0);
 
                 return [
                     'month' => $month,
@@ -91,6 +120,42 @@ class GetDashboardDataUseCase
             'selectedMonth' => $selectedMonth,
             'selectedMonthDetail' => $this->buildSelectedMonthDetail($selectedMonth, $monthlyBalanceRows, $savedPercentages),
         ];
+    }
+
+    private function resolveMonthlyProjectedAmount(IncomeSource|ExpenseSource $source, int $exerciseYear, int $month): float
+    {
+        $referenceDate = CarbonImmutable::create($exerciseYear, $month, 1)->toDateString();
+
+        $effectiveHistory = $source->amountHistories
+            ->filter(fn ($history) => $history->effective_from !== null && $history->effective_from->toDateString() <= $referenceDate)
+            ->reduce(function ($latest, $history) {
+                if ($latest === null) {
+                    return $history;
+                }
+
+                $historyDate = $history->effective_from->toDateString();
+                $latestDate = $latest->effective_from->toDateString();
+
+                if ($historyDate > $latestDate) {
+                    return $history;
+                }
+
+                if ($historyDate === $latestDate && $history->id > $latest->id) {
+                    return $history;
+                }
+
+                return $latest;
+            });
+
+        if ($effectiveHistory !== null) {
+            return (float) $effectiveHistory->amount;
+        }
+
+        if ($source->monthly_amount_started_at !== null && $source->monthly_amount_started_at->toDateString() > $referenceDate) {
+            return 0;
+        }
+
+        return (float) ($source->monthly_amount ?? 0);
     }
 
     private function resolveMonthExpression(): string

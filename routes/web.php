@@ -7,15 +7,12 @@ use App\Http\Controllers\ExpenseEntryController;
 use App\Http\Controllers\ExpenseSourceController;
 use App\Http\Controllers\IncomeEntryController;
 use App\Http\Controllers\IncomeSourceController;
+use App\Http\Controllers\MovementController;
 use Illuminate\Support\Facades\Route;
-use Laravel\Fortify\Features;
-
-Route::inertia('/', 'welcome', [
-    'canRegister' => Features::enabled(Features::registration()),
-])->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    Route::redirect('dashboard', '/');
     Route::put('financeiro/exercicio', [ExerciseYearController::class, 'update'])->name('exercise-year.update');
     Route::get('financeiro/controle-orcamento', [BudgetAllocationController::class, 'index'])->name('budget.control.index');
     Route::put('financeiro/controle-orcamento', [BudgetAllocationController::class, 'update'])->name('budget.control.update');
@@ -24,6 +21,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('financeiro/entradas', [IncomeEntryController::class, 'store'])->name('income.entries.store');
     Route::patch('financeiro/entradas/{incomeEntryId}', [IncomeEntryController::class, 'update'])->name('income.entries.update');
     Route::post('financeiro/fontes-renda', [IncomeSourceController::class, 'store'])->name('income.sources.store');
+
+    Route::get('financeiro/movimentacao', [MovementController::class, 'index'])->name('movement.index');
+    Route::post('financeiro/movimentacao/entradas', [MovementController::class, 'storeIncome'])->name('movement.income.store');
+    Route::post('financeiro/movimentacao/saidas', [MovementController::class, 'storeExpense'])->name('movement.expense.store');
 
     Route::get('financeiro/saidas', [ExpenseEntryController::class, 'index'])->name('expense.entries.index');
     Route::post('financeiro/saidas', [ExpenseEntryController::class, 'store'])->name('expense.entries.store');

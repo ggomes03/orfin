@@ -37,6 +37,7 @@ export default function BudgetControlPage({
     const initialData = items.reduce(
         (accumulator, item) => {
             accumulator[item.key] = item.percentage;
+
             return accumulator;
         },
         {} as Record<string, number>,

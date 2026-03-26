@@ -1,11 +1,14 @@
 <?php
 
 use App\Models\ExpenseEntry;
+use App\Models\ExpenseCategory;
 use App\Models\ExpenseSource;
 use App\Models\IncomeEntry;
 use App\Models\IncomeSource;
+use App\Models\IncomeSourceAmountHistory;
 use App\Models\BudgetAllocation;
 use App\Models\User;
+use App\Models\ExpenseSourceAmountHistory;
 use Inertia\Testing\AssertableInertia as Assert;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
@@ -155,6 +158,7 @@ test('dashboard projects annual fixed expenses and keeps credit card monthly man
         'expense_source_id' => $creditCardSource->id,
         'entry_type' => ExpenseEntry::TYPE_SOURCE,
         'description' => 'Fatura fevereiro',
+        'category_id' => ExpenseCategory::query()->where('code', ExpenseCategory::CODE_LEISURE)->value('id'),
         'amount' => 400,
         'entry_date' => now()->startOfYear()->addMonth()->toDateString(),
     ]);
@@ -165,6 +169,7 @@ test('dashboard projects annual fixed expenses and keeps credit card monthly man
         'expense_source_id' => $fixedExpenseSource->id,
         'entry_type' => ExpenseEntry::TYPE_SOURCE,
         'description' => 'Aluguel lancado manualmente',
+        'category_id' => ExpenseCategory::query()->where('code', ExpenseCategory::CODE_HOUSING)->value('id'),
         'amount' => 1200,
         'entry_date' => now()->startOfYear()->addMonths(2)->toDateString(),
     ]);
@@ -217,6 +222,7 @@ test('dashboard returns monthly detail when month query is provided', function (
         'expense_source_id' => null,
         'entry_type' => ExpenseEntry::TYPE_SIMPLE,
         'description' => 'Saida detalhada',
+        'category_id' => ExpenseCategory::query()->where('code', ExpenseCategory::CODE_FOOD)->value('id'),
         'amount' => 300,
         'entry_date' => now()->startOfYear()->addMonth()->toDateString(),
     ]);
@@ -257,5 +263,102 @@ test('dashboard ignores invalid month query and returns no monthly detail', func
         ->component('dashboard')
         ->where('selectedMonth', null)
         ->where('selectedMonthDetail', null),
+    );
+});
+
+test('dashboard keeps salary history across exercises when amount is reajusted', function () {
+    $user = User::factory()->create();
+    $exerciseYear = now()->year - 1;
+    $nextExerciseYear = $exerciseYear + 1;
+
+    $salarySource = IncomeSource::query()->create([
+        'user_id' => $user->id,
+        'type' => IncomeSource::TYPE_SALARY,
+        'description' => 'Salario principal',
+        'monthly_amount' => '5000.00',
+        'monthly_amount_started_at' => sprintf('%d-02-01', $nextExerciseYear),
+    ]);
+
+    IncomeSourceAmountHistory::query()->create([
+        'income_source_id' => $salarySource->id,
+        'amount' => '4000.00',
+        'effective_from' => sprintf('%d-02-01', $exerciseYear),
+    ]);
+
+    IncomeSourceAmountHistory::query()->create([
+        'income_source_id' => $salarySource->id,
+        'amount' => '5000.00',
+        'effective_from' => sprintf('%d-02-01', $nextExerciseYear),
+    ]);
+
+    $responseCurrentExercise = $this->actingAs($user)
+        ->withSession(['exercise_year' => $exerciseYear])
+        ->get(route('dashboard'));
+
+    $responseCurrentExercise->assertOk();
+    $responseCurrentExercise->assertInertia(fn (Assert $page) => $page
+        ->component('dashboard')
+        ->where('exerciseYear', $exerciseYear)
+        ->where('annualIncomeAmount', 44000),
+    );
+
+    $responseNextExercise = $this->actingAs($user)
+        ->withSession(['exercise_year' => $nextExerciseYear])
+        ->get(route('dashboard'));
+
+    $responseNextExercise->assertOk();
+    $responseNextExercise->assertInertia(fn (Assert $page) => $page
+        ->component('dashboard')
+        ->where('exerciseYear', $nextExerciseYear)
+        ->where('annualIncomeAmount', 59000),
+    );
+});
+
+test('dashboard keeps fixed expense history across exercises when amount is reajusted', function () {
+    $user = User::factory()->create();
+    $exerciseYear = now()->year - 1;
+    $nextExerciseYear = $exerciseYear + 1;
+
+    $fixedSource = ExpenseSource::query()->create([
+        'user_id' => $user->id,
+        'type' => ExpenseSource::TYPE_FIXED,
+        'description' => 'Aluguel',
+        'category_id' => ExpenseCategory::query()->where('code', ExpenseCategory::CODE_HOUSING)->value('id'),
+        'monthly_amount' => '2500.00',
+        'monthly_amount_started_at' => sprintf('%d-02-01', $nextExerciseYear),
+    ]);
+
+    ExpenseSourceAmountHistory::query()->create([
+        'expense_source_id' => $fixedSource->id,
+        'amount' => '2000.00',
+        'effective_from' => sprintf('%d-02-01', $exerciseYear),
+    ]);
+
+    ExpenseSourceAmountHistory::query()->create([
+        'expense_source_id' => $fixedSource->id,
+        'amount' => '2500.00',
+        'effective_from' => sprintf('%d-02-01', $nextExerciseYear),
+    ]);
+
+    $responseCurrentExercise = $this->actingAs($user)
+        ->withSession(['exercise_year' => $exerciseYear])
+        ->get(route('dashboard'));
+
+    $responseCurrentExercise->assertOk();
+    $responseCurrentExercise->assertInertia(fn (Assert $page) => $page
+        ->component('dashboard')
+        ->where('exerciseYear', $exerciseYear)
+        ->where('annualExpenseAmount', 22000),
+    );
+
+    $responseNextExercise = $this->actingAs($user)
+        ->withSession(['exercise_year' => $nextExerciseYear])
+        ->get(route('dashboard'));
+
+    $responseNextExercise->assertOk();
+    $responseNextExercise->assertInertia(fn (Assert $page) => $page
+        ->component('dashboard')
+        ->where('exerciseYear', $nextExerciseYear)
+        ->where('annualExpenseAmount', 29500),
     );
 });

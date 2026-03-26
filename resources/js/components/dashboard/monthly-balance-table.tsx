@@ -1,5 +1,5 @@
-import { Badge } from '@/components/ui/badge';
 import { router } from '@inertiajs/react';
+import { Badge } from '@/components/ui/badge';
 
 type MonthlyBalanceRow = {
     month: number;
@@ -35,19 +35,38 @@ export default function MonthlyBalanceTable({
     rows: MonthlyBalanceRow[];
     selectedMonth: number | null;
 }) {
+    const rowsWithIndicators = rows.reduce<Array<MonthlyBalanceRow & { runningBalance: number; personalInflationPercentage: number | null }>>((acc, row) => {
+        const previousRunningBalance = acc.length > 0 ? acc[acc.length - 1].runningBalance : 0;
+        const previousExpenseAmount = acc.length > 0 ? acc[acc.length - 1].expenseAmount : null;
+        const personalInflationPercentage = previousExpenseAmount !== null && previousExpenseAmount > 0
+            ? Number((((row.expenseAmount - previousExpenseAmount) / previousExpenseAmount) * 100).toFixed(2))
+            : null;
+
+        return [
+            ...acc,
+            {
+                ...row,
+                runningBalance: previousRunningBalance + row.balanceAmount,
+                personalInflationPercentage,
+            },
+        ];
+    }, []);
+
     return (
         <div className="overflow-x-auto p-4 md:p-6">
-            <table className="w-full min-w-[760px] text-sm">
+            <table className="w-full min-w-[1080px] text-sm">
                 <thead>
                     <tr className="border-b text-left text-muted-foreground">
                         <th className="px-2 py-2 font-medium">Mes</th>
                         <th className="px-2 py-2 font-medium">Entradas</th>
                         <th className="px-2 py-2 font-medium">Saidas</th>
+                        <th className="px-2 py-2 font-medium">Inflacao pessoal</th>
                         <th className="px-2 py-2 font-medium">Saldo do mes</th>
+                        <th className="px-2 py-2 font-medium">Saldo acumulado</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {rows.map((row) => (
+                    {rowsWithIndicators.map((row) => (
                         <tr
                             key={row.month}
                             className={
@@ -56,7 +75,7 @@ export default function MonthlyBalanceTable({
                                     : 'cursor-pointer border-b transition-colors hover:bg-muted/40 last:border-0'
                             }
                             onClick={() => {
-                                router.get('/dashboard', { month: row.month }, { preserveScroll: true });
+                                router.get('/', { month: row.month }, { preserveScroll: true });
                             }}
                         >
                             <td className="px-2 py-3 font-medium">
@@ -75,12 +94,40 @@ export default function MonthlyBalanceTable({
                             <td className="px-2 py-3 font-medium">
                                 <Badge
                                     className={
+                                        row.personalInflationPercentage === null
+                                            ? 'bg-muted text-muted-foreground hover:bg-muted'
+                                            : row.personalInflationPercentage > 0
+                                              ? 'bg-red-100 text-red-800 hover:bg-red-100'
+                                              : row.personalInflationPercentage < 0
+                                                ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100'
+                                                : 'bg-muted text-muted-foreground hover:bg-muted'
+                                    }
+                                >
+                                    {row.personalInflationPercentage === null
+                                        ? '-'
+                                        : `${row.personalInflationPercentage.toFixed(2)}%`}
+                                </Badge>
+                            </td>
+                            <td className="px-2 py-3 font-medium">
+                                <Badge
+                                    className={
                                         row.balanceAmount >= 0
                                             ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100'
                                             : 'bg-red-100 text-red-800 hover:bg-red-100'
                                     }
                                 >
                                     {currencyFormatter.format(row.balanceAmount)}
+                                </Badge>
+                            </td>
+                            <td className="px-2 py-3 font-medium">
+                                <Badge
+                                    className={
+                                        row.runningBalance >= 0
+                                            ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100'
+                                            : 'bg-red-100 text-red-800 hover:bg-red-100'
+                                    }
+                                >
+                                    {currencyFormatter.format(row.runningBalance)}
                                 </Badge>
                             </td>
                         </tr>

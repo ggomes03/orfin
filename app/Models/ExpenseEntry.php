@@ -14,6 +14,7 @@ class ExpenseEntry extends Model
     protected $fillable = [
         'user_id',
         'expense_source_id',
+        'category_id',
         'entry_type',
         'description',
         'amount',
@@ -36,5 +37,10 @@ class ExpenseEntry extends Model
     public function expenseSource(): BelongsTo
     {
         return $this->belongsTo(ExpenseSource::class);
+    }
+
+    public function expenseCategory(): BelongsTo
+    {
+        return $this->belongsTo(ExpenseCategory::class, 'category_id');
     }
 }

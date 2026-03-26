@@ -22,13 +22,8 @@ const mainNavItems: NavItem[] = [
         icon: LayoutGrid,
     },
     {
-        title: 'Entradas',
-        href: '/financeiro/entradas',
-        icon: CircleDollarSign,
-    },
-    {
-        title: 'Saidas',
-        href: '/financeiro/saidas',
+        title: 'Movimentacao',
+        href: '/financeiro/movimentacao',
         icon: CircleDollarSign,
     },
     {

@@ -74,6 +74,7 @@ export default function IncomeEntriesPage({
         type: sourceTypeOptions[0]?.value ?? 'salary',
         description: '',
         monthly_amount: '',
+        effective_from: getTodayDateInputValue(),
     });
 
     const entryForm = useForm({
@@ -87,6 +88,7 @@ export default function IncomeEntriesPage({
     const sourceTypeLabelByValue = sourceTypeOptions.reduce(
         (accumulator, option) => {
             accumulator[option.value] = option.label;
+
             return accumulator;
         },
         {} as Record<string, string>,
@@ -124,6 +126,7 @@ export default function IncomeEntriesPage({
             preserveScroll: true,
             onSuccess: () => {
                 sourceForm.reset('description', 'monthly_amount');
+                sourceForm.setData('effective_from', getTodayDateInputValue());
             },
         });
     };
@@ -245,6 +248,17 @@ export default function IncomeEntriesPage({
                                         placeholder="0,00"
                                     />
                                     <InputError message={sourceForm.errors.monthly_amount} />
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="source_effective_from">Vigente a partir de</Label>
+                                    <Input
+                                        id="source_effective_from"
+                                        type="date"
+                                        value={sourceForm.data.effective_from}
+                                        onChange={(event) => sourceForm.setData('effective_from', event.target.value)}
+                                    />
+                                    <InputError message={sourceForm.errors.effective_from} />
                                 </div>
 
                                 <Button type="submit" disabled={sourceForm.processing}>

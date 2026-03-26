@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateFixedExpenseSourceRequest extends FormRequest
 {
@@ -24,7 +25,9 @@ class UpdateFixedExpenseSourceRequest extends FormRequest
     {
         return [
             'description' => ['required', 'string', 'max:255'],
+            'category_id' => ['required', 'integer', Rule::exists('expense_categories', 'id')],
             'monthly_amount' => ['required', 'numeric', 'gt:0'],
+            'effective_from' => ['required', 'date'],
         ];
     }
 }

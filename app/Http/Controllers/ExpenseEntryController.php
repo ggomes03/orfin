@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreExpenseEntryRequest;
 use App\Http\Requests\UpdateSimpleExpenseEntryRequest;
 use App\Models\ExpenseEntry;
+use App\Models\ExpenseCategory;
 use App\Models\ExpenseSource;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,8 +25,14 @@ class ExpenseEntryController extends Controller
 
         $fixedExpenseSources = $request->user()->expenseSources()
             ->where('type', ExpenseSource::TYPE_FIXED)
+            ->with([
+                'expenseCategory:id,name',
+                'amountHistories' => fn ($query) => $query
+                    ->latest('effective_from')
+                    ->latest('id'),
+            ])
             ->latest()
-            ->get(['id', 'type', 'description', 'monthly_amount']);
+            ->get(['id', 'type', 'description', 'category_id', 'monthly_amount', 'monthly_amount_started_at']);
 
         $expenseSources = $request->user()->expenseSources()
             ->where('type', '!=', ExpenseSource::TYPE_FIXED)
@@ -33,14 +40,23 @@ class ExpenseEntryController extends Controller
             ->get(['id', 'type', 'description', 'monthly_amount']);
 
         $expenseEntries = $request->user()->expenseEntries()
-            ->with('expenseSource:id,type,description')
+            ->with(['expenseSource:id,type,description', 'expenseCategory:id,name'])
             ->whereYear('entry_date', $exerciseYear)
             ->latest('entry_date')
             ->latest('id')
-            ->get(['id', 'expense_source_id', 'entry_type', 'description', 'amount', 'entry_date']);
+            ->get(['id', 'expense_source_id', 'entry_type', 'description', 'category_id', 'amount', 'entry_date']);
 
         $sourceTypeOptions = collect(ExpenseSource::typeLabels())
             ->map(fn (string $label, string $value) => ['value' => $value, 'label' => $label])
+            ->values();
+
+        $expenseCategoryOptions = ExpenseCategory::query()
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (ExpenseCategory $category) => [
+                'value' => (string) $category->id,
+                'label' => $category->name,
+            ])
             ->values();
 
         return Inertia::render('expense/entries', [
@@ -48,6 +64,7 @@ class ExpenseEntryController extends Controller
             'expenseSources' => $expenseSources,
             'expenseEntries' => $expenseEntries,
             'sourceTypeOptions' => $sourceTypeOptions,
+            'expenseCategoryOptions' => $expenseCategoryOptions,
             'exerciseYear' => $exerciseYear,
             'status' => $request->session()->get('status'),
         ]);
@@ -64,6 +81,7 @@ class ExpenseEntryController extends Controller
                 'expense_source_id' => $expenseSource->id,
                 'entry_type' => ExpenseEntry::TYPE_SOURCE,
                 'description' => $validated['description'] ?: $expenseSource->description,
+                'category_id' => $validated['category_id'],
                 'amount' => $validated['amount'],
                 'entry_date' => $validated['entry_date'],
             ]);
@@ -74,6 +92,7 @@ class ExpenseEntryController extends Controller
         $request->user()->expenseEntries()->create([
             'entry_type' => ExpenseEntry::TYPE_SIMPLE,
             'description' => $validated['description'],
+            'category_id' => $validated['category_id'],
             'amount' => $validated['amount'],
             'entry_date' => $validated['entry_date'],
         ]);
@@ -90,7 +109,7 @@ class ExpenseEntryController extends Controller
 
         $expenseEntry->update($request->validated());
 
-        return to_route('expense.entries.index')->with('status', 'Saida avulsa atualizada com sucesso.');
+        return to_route($this->resolveRedirectRoute($request))->with('status', 'Saida avulsa atualizada com sucesso.');
     }
 
     public function updateSource(UpdateSimpleExpenseEntryRequest $request, int $expenseEntryId): RedirectResponse
@@ -102,7 +121,14 @@ class ExpenseEntryController extends Controller
 
         $expenseEntry->update($request->validated());
 
-        return to_route('expense.entries.index')->with('status', 'Saida por fonte atualizada com sucesso.');
+        return to_route($this->resolveRedirectRoute($request))->with('status', 'Saida por fonte atualizada com sucesso.');
+    }
+
+    private function resolveRedirectRoute(Request $request): string
+    {
+        return $request->string('redirect_to')->toString() === 'movement'
+            ? 'movement.index'
+            : 'expense.entries.index';
     }
 
     public function destroy(Request $request, int $expenseEntryId): RedirectResponse

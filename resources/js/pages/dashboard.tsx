@@ -1,6 +1,6 @@
 import { Head } from '@inertiajs/react';
-import MonthlyEntriesExpensesDetail from '@/components/dashboard/monthly-entries-expenses-detail';
 import MonthlyBalanceTable from '@/components/dashboard/monthly-balance-table';
+import MonthlyEntriesExpensesDetail from '@/components/dashboard/monthly-entries-expenses-detail';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
@@ -111,7 +111,7 @@ export default function Dashboard({
                         </p>
                     </div>
                 </div>
-                <div className="grid min-h-[100vh] flex-1 gap-4 md:min-h-min md:grid-cols-2">
+                <div className="grid min-h-[100vh] flex-1 gap-4 md:min-h-min md:grid-cols-2 xl:grid-cols-[minmax(0,60%)_minmax(360px,40%)]">
                     <div className="relative overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
                         <MonthlyBalanceTable rows={monthlyBalanceRows} selectedMonth={selectedMonth} />
                     </div>

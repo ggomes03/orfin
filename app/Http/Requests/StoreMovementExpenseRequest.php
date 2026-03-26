@@ -8,7 +8,7 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class StoreExpenseEntryRequest extends FormRequest
+class StoreMovementExpenseRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -26,7 +26,7 @@ class StoreExpenseEntryRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'entry_mode' => ['required', 'string', Rule::in([ExpenseEntry::TYPE_SOURCE, ExpenseEntry::TYPE_SIMPLE])],
+            'entry_mode' => ['required', 'string', Rule::in([ExpenseEntry::TYPE_SOURCE, ExpenseEntry::TYPE_SIMPLE, ExpenseSource::TYPE_FIXED])],
             'expense_source_id' => [
                 'nullable',
                 'required_if:entry_mode,'.ExpenseEntry::TYPE_SOURCE,
@@ -36,10 +36,24 @@ class StoreExpenseEntryRequest extends FormRequest
                         ->where('type', '!=', ExpenseSource::TYPE_FIXED)
                 ),
             ],
-            'description' => ['nullable', 'required_if:entry_mode,'.ExpenseEntry::TYPE_SIMPLE, 'string', 'max:255'],
+            'description' => ['nullable', 'required_if:entry_mode,'.ExpenseEntry::TYPE_SIMPLE.','.ExpenseSource::TYPE_FIXED, 'string', 'max:255'],
             'category_id' => ['required', 'integer', Rule::exists('expense_categories', 'id')],
-            'amount' => ['required', 'numeric', 'gt:0'],
-            'entry_date' => ['required', 'date'],
+            'amount' => [
+                Rule::requiredIf(fn () => in_array((string) $this->input('entry_mode'), [ExpenseEntry::TYPE_SIMPLE, ExpenseEntry::TYPE_SOURCE], true)),
+                'nullable',
+                'numeric',
+                'gt:0',
+            ],
+            'entry_date' => [
+                Rule::requiredIf(fn () => in_array((string) $this->input('entry_mode'), [ExpenseEntry::TYPE_SIMPLE, ExpenseEntry::TYPE_SOURCE], true)),
+                'nullable',
+                'date',
+            ],
+            'effective_from' => [
+                Rule::requiredIf(fn () => $this->input('entry_mode') === ExpenseSource::TYPE_FIXED),
+                'nullable',
+                'date',
+            ],
         ];
     }
 }

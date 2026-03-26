@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\ExpenseEntry;
+use App\Models\ExpenseCategory;
 use App\Models\IncomeEntry;
 use App\Models\User;
 
@@ -46,6 +47,7 @@ test('income and expense listing pages respect selected exercise year', function
         'expense_source_id' => null,
         'entry_type' => ExpenseEntry::TYPE_SIMPLE,
         'description' => 'Saida ano selecionado',
+        'category_id' => ExpenseCategory::query()->where('code', ExpenseCategory::CODE_TRANSPORT)->value('id'),
         'amount' => 50,
         'entry_date' => "$selectedYear-03-15",
     ]);
@@ -55,6 +57,7 @@ test('income and expense listing pages respect selected exercise year', function
         'expense_source_id' => null,
         'entry_type' => ExpenseEntry::TYPE_SIMPLE,
         'description' => 'Saida ano atual',
+        'category_id' => ExpenseCategory::query()->where('code', ExpenseCategory::CODE_FOOD)->value('id'),
         'amount' => 75,
         'entry_date' => now()->toDateString(),
     ]);

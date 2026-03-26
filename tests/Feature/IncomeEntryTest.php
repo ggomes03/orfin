@@ -2,6 +2,7 @@
 
 use App\Models\IncomeEntry;
 use App\Models\IncomeSource;
+use App\Models\IncomeSourceAmountHistory;
 use App\Models\User;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
@@ -27,6 +28,7 @@ test('authenticated user can create an income source', function () {
         'type' => IncomeSource::TYPE_SALARY,
         'description' => 'Salario CLT',
         'monthly_amount' => '3500.00',
+        'effective_from' => '2026-02-01',
     ]);
 
     $response->assertRedirect(route('income.entries.index'));
@@ -36,6 +38,65 @@ test('authenticated user can create an income source', function () {
         'type' => IncomeSource::TYPE_SALARY,
         'description' => 'Salario CLT',
         'monthly_amount' => '3500.00',
+        'monthly_amount_started_at' => '2026-02-01 00:00:00',
+    ]);
+
+    $incomeSourceId = IncomeSource::query()->where('user_id', $user->id)->where('description', 'Salario CLT')->value('id');
+
+    $this->assertDatabaseHas('income_source_amount_histories', [
+        'income_source_id' => $incomeSourceId,
+        'amount' => '3500.00',
+        'effective_from' => '2026-02-01 00:00:00',
+    ]);
+});
+
+test('source based income entry uses amount effective on entry date', function () {
+    $user = User::factory()->create();
+
+    $source = IncomeSource::query()->create([
+        'user_id' => $user->id,
+        'type' => IncomeSource::TYPE_SERVICE_PROVISION,
+        'description' => 'Contrato mensal',
+        'monthly_amount' => '2500.00',
+        'monthly_amount_started_at' => '2026-02-01',
+    ]);
+
+    IncomeSourceAmountHistory::query()->create([
+        'income_source_id' => $source->id,
+        'amount' => '1800.00',
+        'effective_from' => '2025-02-01',
+    ]);
+
+    IncomeSourceAmountHistory::query()->create([
+        'income_source_id' => $source->id,
+        'amount' => '2500.00',
+        'effective_from' => '2026-02-01',
+    ]);
+
+    $this->actingAs($user)->post(route('income.entries.store'), [
+        'entry_mode' => IncomeEntry::TYPE_SOURCE,
+        'income_source_id' => $source->id,
+        'entry_date' => '2026-01-15',
+    ])->assertRedirect(route('income.entries.index'));
+
+    $this->actingAs($user)->post(route('income.entries.store'), [
+        'entry_mode' => IncomeEntry::TYPE_SOURCE,
+        'income_source_id' => $source->id,
+        'entry_date' => '2026-03-15',
+    ])->assertRedirect(route('income.entries.index'));
+
+    $this->assertDatabaseHas('income_entries', [
+        'user_id' => $user->id,
+        'income_source_id' => $source->id,
+        'entry_date' => '2026-01-15 00:00:00',
+        'amount' => 1800,
+    ]);
+
+    $this->assertDatabaseHas('income_entries', [
+        'user_id' => $user->id,
+        'income_source_id' => $source->id,
+        'entry_date' => '2026-03-15 00:00:00',
+        'amount' => 2500,
     ]);
 });
 

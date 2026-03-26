@@ -53,12 +53,13 @@ class IncomeEntryController extends Controller
 
         if ($validated['entry_mode'] === IncomeEntry::TYPE_SOURCE) {
             $incomeSource = $request->user()->incomeSources()->findOrFail($validated['income_source_id']);
+            $entryAmount = $incomeSource->resolveAmountForDate($validated['entry_date']);
 
             $request->user()->incomeEntries()->create([
                 'income_source_id' => $incomeSource->id,
                 'entry_type' => IncomeEntry::TYPE_SOURCE,
                 'description' => $incomeSource->description,
-                'amount' => $incomeSource->monthly_amount,
+                'amount' => $entryAmount,
                 'entry_date' => $validated['entry_date'],
             ]);
 
